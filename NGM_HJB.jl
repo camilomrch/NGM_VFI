@@ -81,7 +81,7 @@ function solve_HJB_explicit(paramss::ModelParameters)
     muf                 = zeros(nk)
     mub                 = zeros(nk)
 
-    # Elicit initial guess for value function.
+    # Elicit initial guess for value function, which corresponds to the HJB when the drift equals zero.
     v0                  = u.(F.(kgrid)) / ρ
     # Feed guess to loop below to initialize it.
     v                   = copy(v0)
@@ -103,7 +103,7 @@ function solve_HJB_explicit(paramss::ModelParameters)
         dVb[2:nk]   .= (V[2:nk] - V[1:nk-1]) / Δk
         dVb[1] = 0;
 
-        # Computing optimal consumption and drift, based on forward and backward differences.
+        # Compute optimal consumption and drift, based on forward and backward differences.
         cf .= dVf.^(-1/σ)
         muf .= F.(kgrid) - δ .* kgrid - cf
         cb .= dVb.^(-1/σ)
@@ -117,7 +117,7 @@ function solve_HJB_explicit(paramss::ModelParameters)
         ## Upwind scheme: 
         ## use forward difference whenever drift of state variable positive, backward difference whenever drift of state variable negative.
         
-        # Computer indicators.
+        # Compute indicators.
         If = muf .> 0
         Ib = mub .< 0
         I0 = .~(If .| Ib)

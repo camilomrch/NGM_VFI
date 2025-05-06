@@ -65,6 +65,7 @@ function solve_HJB_implicit(paramss::ModelParameters)
 
     @unpack_ModelParameters paramss
 
+    # Get lower and upper bounds of the grid.
     kmin = kgrid[1]
     kmax = kgrid[end]
 
@@ -91,7 +92,7 @@ function solve_HJB_implicit(paramss::ModelParameters)
 
     b                   = zeros(nk)
 
-    # Elicit initial guess for value function.
+    # Elicit initial guess for value function, which corresponds to the HJB when the drift equals zero.
     v0                  = u.(F.(kgrid)) / ρ
     # Feed guess to loop below to initialize it.
     v                   = copy(v0)
@@ -108,12 +109,13 @@ function solve_HJB_implicit(paramss::ModelParameters)
         V = copy(v)
 
         # Approximating V' by computing forward and backward differences of V. 
+        # For the boundary conditions see page 29 at (https://benjaminmoll.com/wp-content/uploads/2019/07/viscosity_slides.pdf).
         dVf[1:nk-1] .= (V[2:nk] - V[1:nk-1]) / Δk
-        dVf[nk] = (F.(kmax) - δ .* kmax)^(-σ)
+        dVf[nk]      = (F.(kmax) - δ .* kmax)^(-σ) # upper boundary condition motivated by the state constraint kmin<k<kmax. 
         dVb[2:nk]   .= (V[2:nk] - V[1:nk-1]) / Δk
-        dVb[1] = (F.(kmin) - δ .* kmin)^(-σ)
+        dVb[1]       = (F.(kmin) - δ .* kmin)^(-σ) # lower boundary condition motivated by the state constraint kmin<k<kmax. 
 
-        # Computing optimal consumption and drift, based on forward and backward differences.
+        # Compute optimal consumption and drift, based on forward and backward differences.
         cf .= dVf.^(-1/σ)
         muf .= F.(kgrid) - δ .* kgrid - cf
         cb .= dVb.^(-1/σ)
@@ -127,7 +129,7 @@ function solve_HJB_implicit(paramss::ModelParameters)
         ## Upwind scheme: 
         ## use forward difference whenever drift of state variable positive, backward difference whenever drift of state variable negative.
         
-        # Computer indicators.
+        # Compute indicators.
         If = muf .> 0
         Ib = mub .< 0
         I0 = .~(If .| Ib)
@@ -150,9 +152,9 @@ function solve_HJB_implicit(paramss::ModelParameters)
 
         # Construct sparse matrix A.
         A = spdiagm(
-            -1 => X[2:end],      # Lower diagonal (nk - 1).
-             0 => Y,             # Main diagonal (nk).
-             1 => Z[1:end-1]     # Upper diagonal (nk - 1).
+            -1 => X[2:end],      # Lower diagonal (dimension: nk - 1).
+             0 => Y,             # Main diagonal  (dimension:  nk).
+             1 => Z[1:end-1]     # Upper diagonal (dimension: nk - 1).
         )
 
         # Construct sparse matrix B.
